@@ -1,9 +1,13 @@
-name: Build Multi-Platform Executables
+name: Build Distribution-Ready Packages
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
   workflow_dispatch:
+  release:
+    types: [published]
 
 jobs:
   build-windows:
@@ -18,16 +22,45 @@ jobs:
         python-version: '3.11'
     
     - name: Install PyInstaller
-      run: pip install pyinstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
     
-    - name: Build Windows EXE
-      run: pyinstaller --onefile --windowed --name "Base64Converter-Windows" textToBase64.py
-    
-    - name: Upload Windows artifact
+    - name: Build Windows executable
+      run: |
+        pyinstaller --onefile --windowed --name "Base64Converter" textToBase64.py
+        
+    - name: Prepare Windows distribution
+      run: |
+        cd dist
+        # Créer un dossier de distribution propre
+        mkdir Base64Converter-Windows
+        copy Base64Converter.exe Base64Converter-Windows/
+        
+        # Créer un fichier README pour Windows
+        echo "# Base64 Converter pour Windows" > Base64Converter-Windows/README.txt
+        echo "" >> Base64Converter-Windows/README.txt
+        echo "## Installation:" >> Base64Converter-Windows/README.txt
+        echo "1. Double-cliquez sur Base64Converter.exe" >> Base64Converter-Windows/README.txt
+        echo "2. Si Windows Defender bloque l'application:" >> Base64Converter-Windows/README.txt
+        echo "   - Cliquez sur 'Informations complementaires'" >> Base64Converter-Windows/README.txt
+        echo "   - Puis 'Executer quand meme'" >> Base64Converter-Windows/README.txt
+        echo "" >> Base64Converter-Windows/README.txt
+        echo "## Utilisation:" >> Base64Converter-Windows/README.txt
+        echo "- Entrez votre texte dans le champ" >> Base64Converter-Windows/README.txt
+        echo "- Cliquez sur 'Convertir'" >> Base64Converter-Windows/README.txt
+        echo "- Explorez les 5 onglets pour voir le processus detaille" >> Base64Converter-Windows/README.txt
+        echo "" >> Base64Converter-Windows/README.txt
+        echo "Cree par Pierre Defauquet - Formation CDA" >> Base64Converter-Windows/README.txt
+        
+        # Créer le ZIP de distribution
+        powershell Compress-Archive -Path Base64Converter-Windows -DestinationPath Base64Converter-Windows-Ready.zip
+        
+    - name: Upload Windows distribution
       uses: actions/upload-artifact@v4
       with:
-        name: Windows-EXE
-        path: dist/Base64Converter-Windows.exe
+        name: Windows-Ready-Package
+        path: dist/Base64Converter-Windows-Ready.zip
 
   build-macos:
     runs-on: macos-latest
@@ -41,16 +74,73 @@ jobs:
         python-version: '3.11'
     
     - name: Install PyInstaller
-      run: pip install pyinstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
     
-    - name: Build macOS app
-      run: pyinstaller --onefile --windowed --name "Base64Converter-macOS" textToBase64.py
-    
-    - name: Upload macOS artifact
+    - name: Build macOS app bundle
+      run: |
+        pyinstaller --onedir --windowed --name "Base64Converter" textToBase64.py
+        
+    - name: Prepare macOS distribution
+      run: |
+        cd dist
+        
+        # Supprimer la quarantaine de l'app
+        xattr -cr Base64Converter.app
+        
+        # Créer un dossier de distribution
+        mkdir Base64Converter-macOS
+        cp -R Base64Converter.app Base64Converter-macOS/
+        
+        # Créer un fichier README pour macOS
+        cat > Base64Converter-macOS/README.md << 'EOF'
+# Base64 Converter pour macOS
+
+## 🚀 Installation rapide:
+1. **Extraire** le fichier ZIP téléchargé
+2. **Glisser** `Base64Converter.app` vers votre dossier **Applications**
+3. **Double-cliquer** sur l'app dans Applications
+
+## 🔓 Si macOS bloque l'application:
+### Méthode 1 (Recommandée):
+1. Aller dans **Préférences Système** → **Sécurité et confidentialité**
+2. Cliquer sur **"Ouvrir quand même"** à côté du message de blocage
+
+### Méthode 2 (Terminal):
+```bash
+xattr -d com.apple.quarantine /Applications/Base64Converter.app
+```
+
+### Méthode 3 (Clic droit):
+1. **Clic droit** sur l'app → **Ouvrir**
+2. Confirmer **"Ouvrir"** dans la popup
+
+## 🎯 Utilisation:
+- **Entrez** votre texte dans le champ
+- **Cliquez** sur "🔄 Convertir"  
+- **Explorez** les 5 onglets pour voir le processus détaillé:
+  1. 🔤 Texte → ASCII
+  2. 🔢 ASCII → Binaire  
+  3. ✂️ Découpe en 6-bits
+  4. 🎯 6-bits → Base64
+  5. ✅ Résultat Final
+
+## 💡 Astuce:
+Glissez l'app vers le **Dock** pour un accès rapide !
+
+---
+*Créé par Pierre Defauquet - Formation CDA*
+EOF
+        
+        # Créer le ZIP de distribution
+        zip -r Base64Converter-macOS-Ready.zip Base64Converter-macOS
+        
+    - name: Upload macOS distribution
       uses: actions/upload-artifact@v4
       with:
-        name: macOS-App
-        path: dist/Base64Converter-macOS
+        name: macOS-Ready-Package  
+        path: dist/Base64Converter-macOS-Ready.zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -64,16 +154,215 @@ jobs:
         python-version: '3.11'
     
     - name: Install system dependencies
-      run: sudo apt-get update && sudo apt-get install -y python3-tk
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk
     
     - name: Install PyInstaller
-      run: pip install pyinstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
     
-    - name: Build Linux app
-      run: pyinstaller --onefile --windowed --name "Base64Converter-Linux" textToBase64.py
-    
-    - name: Upload Linux artifact
+    - name: Build Linux executable
+      run: |
+        pyinstaller --onefile --windowed --name "Base64Converter" textToBase64.py
+        
+    - name: Prepare Linux distribution
+      run: |
+        cd dist
+        
+        # Créer un dossier de distribution
+        mkdir Base64Converter-Linux
+        cp Base64Converter Base64Converter-Linux/
+        chmod +x Base64Converter-Linux/Base64Converter
+        
+        # Créer un script de lancement user-friendly
+        cat > Base64Converter-Linux/launch.sh << 'EOF'
+#!/bin/bash
+# Script de lancement Base64 Converter pour Linux
+
+echo "🚀 Lancement de Base64 Converter..."
+
+# Vérifier que l'exécutable existe
+if [ ! -f "./Base64Converter" ]; then
+    echo "❌ Erreur: Base64Converter non trouvé"
+    echo "💡 Assurez-vous d'être dans le bon dossier"
+    exit 1
+fi
+
+# Rendre l'exécutable si nécessaire
+chmod +x Base64Converter
+
+# Lancer l'application
+./Base64Converter
+
+echo "✅ Base64 Converter fermé"
+EOF
+        
+        chmod +x Base64Converter-Linux/launch.sh
+        
+        # Créer un fichier README pour Linux
+        cat > Base64Converter-Linux/README.md << 'EOF'
+# Base64 Converter pour Linux
+
+## 🚀 Installation et lancement:
+
+### Méthode 1 (Script automatique - Recommandée):
+```bash
+# Extraire le ZIP téléchargé
+unzip Base64Converter-Linux-Ready.zip
+cd Base64Converter-Linux
+
+# Lancer avec le script
+./launch.sh
+```
+
+### Méthode 2 (Manuel):
+```bash
+# Extraire le ZIP téléchargé  
+unzip Base64Converter-Linux-Ready.zip
+cd Base64Converter-Linux
+
+# Rendre l'exécutable
+chmod +x Base64Converter
+
+# Lancer l'application
+./Base64Converter
+```
+
+### Méthode 3 (Interface graphique):
+1. **Extraire** le fichier ZIP
+2. **Ouvrir** le dossier dans votre gestionnaire de fichiers
+3. **Double-cliquer** sur `launch.sh`
+
+## 🔧 Dépendances requises:
+- **Python 3.x** (généralement pré-installé)
+- **Tkinter** - installer avec:
+  ```bash
+  # Ubuntu/Debian:
+  sudo apt-get install python3-tk
+  
+  # Fedora/RHEL:
+  sudo dnf install tkinter
+  
+  # Arch Linux:  
+  sudo pacman -S tk
+  ```
+
+## 🎯 Utilisation:
+- **Entrez** votre texte dans le champ
+- **Cliquez** sur "🔄 Convertir"
+- **Explorez** les 5 onglets pour voir le processus détaillé
+
+## 🐧 Testé sur:
+- Ubuntu 20.04+ 
+- Debian 11+
+- Fedora 35+
+- Arch Linux
+- Linux Mint
+
+---
+*Créé par Pierre Defauquet - Formation CDA*
+EOF
+        
+        # Créer le ZIP de distribution
+        zip -r Base64Converter-Linux-Ready.zip Base64Converter-Linux
+        
+    - name: Upload Linux distribution
       uses: actions/upload-artifact@v4
       with:
-        name: Linux-App
-        path: dist/Base64Converter-Linux
+        name: Linux-Ready-Package
+        path: dist/Base64Converter-Linux-Ready.zip
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Display artifact structure
+      run: find artifacts -type f -name "*.zip"
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Base64 Converter v${{ github.run_number }}
+        body: |
+          # 🚀 Base64 Converter - Version ${{ github.run_number }}
+          
+          ## 📦 Téléchargements (Prêts à utiliser)
+          
+          ### 🖥️ Windows
+          **Fichier**: `Base64Converter-Windows-Ready.zip`
+          - ✅ **Installation**: Extraire le ZIP et double-cliquer sur `.exe`
+          - ✅ **Aucune installation Python requise**
+          - ✅ **Compatible**: Windows 10/11
+          
+          ### 🍎 macOS  
+          **Fichier**: `Base64Converter-macOS-Ready.zip`
+          - ✅ **Installation**: Extraire et glisser vers Applications
+          - ✅ **Bundle .app natif** macOS
+          - ✅ **Compatible**: macOS 10.15+
+          
+          ### 🐧 Linux
+          **Fichier**: `Base64Converter-Linux-Ready.zip`  
+          - ✅ **Installation**: Extraire et lancer `./launch.sh`
+          - ✅ **Script de lancement** inclus
+          - ✅ **Compatible**: Ubuntu, Debian, Fedora, Arch
+          
+          ## ✨ Fonctionnalités
+          - 🔄 **Conversion Texte → Base64** avec processus détaillé
+          - 📚 **5 onglets pédagogiques** expliquant chaque étape
+          - ✅ **Vérification automatique** avec Python natif
+          - 📋 **Copie rapide** des résultats
+          - 🎨 **Interface graphique** intuitive
+          
+          ## 🎓 Utilisation pédagogique
+          Parfait pour enseigner :
+          - Le codage ASCII
+          - La représentation binaire  
+          - Le processus Base64
+          - Les conversions de bases
+          
+          ---
+          *Développé par Pierre Defauquet dans le cadre de la formation Concepteur Développeur d'Applications*
+        draft: false
+        prerelease: false
+
+    - name: Upload Windows Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/Windows-Ready-Package/Base64Converter-Windows-Ready.zip
+        asset_name: Base64Converter-Windows-Ready.zip
+        asset_content_type: application/zip
+
+    - name: Upload macOS Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/macOS-Ready-Package/Base64Converter-macOS-Ready.zip
+        asset_name: Base64Converter-macOS-Ready.zip
+        asset_content_type: application/zip
+
+    - name: Upload Linux Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/Linux-Ready-Package/Base64Converter-Linux-Ready.zip
+        asset_name: Base64Converter-Linux-Ready.zip
+        asset_content_type: application/zip
