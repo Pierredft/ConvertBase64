@@ -1,0 +1,4 @@
+venv_base64/
+build/
+dist/
+*.spec
