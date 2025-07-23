@@ -1,0 +1,79 @@
+name: Build Multi-Platform Executables
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install PyInstaller
+      run: pip install pyinstaller
+    
+    - name: Build Windows EXE
+      run: pyinstaller --onefile --windowed --name "Base64Converter-Windows" textToBase64.py
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Windows-EXE
+        path: dist/Base64Converter-Windows.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install PyInstaller
+      run: pip install pyinstaller
+    
+    - name: Build macOS app
+      run: pyinstaller --onefile --windowed --name "Base64Converter-macOS" textToBase64.py
+    
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macOS-App
+        path: dist/Base64Converter-macOS
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: sudo apt-get update && sudo apt-get install -y python3-tk
+    
+    - name: Install PyInstaller
+      run: pip install pyinstaller
+    
+    - name: Build Linux app
+      run: pyinstaller --onefile --windowed --name "Base64Converter-Linux" textToBase64.py
+    
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linux-App
+        path: dist/Base64Converter-Linux
