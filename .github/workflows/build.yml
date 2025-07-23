@@ -257,8 +257,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ github.run_number }}
-        release_name: Base64 Converter v${{ github.run_number }}
+        tag_name: release-${{ github.sha }}
+        release_name: Base64 Converter - Build ${{ github.run_number }}
         body: |
           # 🚀 Base64 Converter - Version ${{ github.run_number }}
           
