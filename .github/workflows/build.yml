@@ -9,6 +9,11 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+  actions: read
+  packages: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
